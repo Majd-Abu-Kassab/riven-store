@@ -1,0 +1,137 @@
+.dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+}
+
+.title {
+    font-size: var(--text-2xl);
+    font-weight: 800;
+}
+
+/* KPI Grid */
+.kpiGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-6);
+}
+
+.kpiCard {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    transition: all var(--transition-base);
+}
+
+.kpiCard:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.kpiIcon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.kpiRevenue .kpiIcon {
+    background: var(--color-success-bg);
+    color: var(--color-success);
+}
+
+.kpiOrders .kpiIcon {
+    background: var(--color-primary-bg);
+    color: var(--color-primary);
+}
+
+.kpiProducts .kpiIcon {
+    background: var(--color-info-bg);
+    color: var(--color-info);
+}
+
+.kpiCustomers .kpiIcon {
+    background: var(--color-warning-bg);
+    color: var(--color-warning);
+}
+
+.kpiLabel {
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.kpiValue {
+    font-size: var(--text-2xl);
+    font-weight: 800;
+    margin-top: var(--space-1);
+}
+
+/* Panels */
+.gridRow {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: var(--space-6);
+}
+
+.panel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+}
+
+.panelTitle {
+    font-size: var(--text-base);
+    font-weight: 700;
+    margin-bottom: var(--space-5);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+/* Alert List */
+.alertList {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.alertItem {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3);
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-md);
+}
+
+.alertName {
+    font-size: var(--text-sm);
+    font-weight: 500;
+}
+
+@media (max-width: 1024px) {
+    .kpiGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .gridRow {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .kpiGrid {
+        grid-template-columns: 1fr;
+    }
+}
