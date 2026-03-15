@@ -19,11 +19,20 @@ export async function updateSession(request: NextRequest) {
                 getAll() {
                     return request.cookies.getAll();
                 },
+
+
                 setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
+                    // 1. Update the request cookies so subsequent middleware/routes see them
                     cookiesToSet.forEach(({ name, value }) =>
                         request.cookies.set(name, value)
                     );
-                    supabaseResponse = NextResponse.next({ request });
+
+                    // 2. Create the response object
+                    supabaseResponse = NextResponse.next({
+                        request,
+                    });
+
+                    // 3. Update the response cookies so the browser saves them
                     cookiesToSet.forEach(({ name, value, options }) =>
                         supabaseResponse.cookies.set(name, value, options)
                     );
