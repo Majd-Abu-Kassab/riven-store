@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/contexts/cart-context';
 import { useAuth } from '@/contexts/auth-context';
-import { createClient } from '@/lib/supabase/client';
 import Image from 'next/image';
 import { Truck, Store, CreditCard, ShoppingBag, Check, MapPin, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -40,34 +39,23 @@ export default function CheckoutPage() {
     const handlePlaceOrder = async () => {
         setLoading(true);
         try {
-            const supabase = createClient();
             const orderNum = `RVN-${Date.now().toString().slice(-6)}`;
-
-            const { data: order, error } = await supabase
-                .from('orders')
-                .insert({
-                    customer_id: user?.id,
-                    order_number: orderNum,
-                    status: 'pending',
-                    delivery_method: deliveryMethod,
-                    subtotal,
-                    shipping_cost: effectiveShipping,
-                    tax: 0,
-                    total: effectiveTotal,
-                    shipping_name: form.name,
-                    shipping_address: deliveryMethod === 'delivery' ? form.address : null,
-                    shipping_city: deliveryMethod === 'delivery' ? form.city : null,
-                    shipping_phone: form.phone,
-                    notes: form.notes || null,
-                })
-                .select()
-                .single();
-
-            if (error) throw error;
-
-            // Insert order items
+            const order = {
+                customer_id: user?.id || null,
+                order_number: orderNum,
+                status: 'pending',
+                delivery_method: deliveryMethod,
+                subtotal,
+                shipping_cost: effectiveShipping,
+                tax: 0,
+                total: effectiveTotal,
+                shipping_name: form.name,
+                shipping_address: deliveryMethod === 'delivery' ? form.address : null,
+                shipping_city: deliveryMethod === 'delivery' ? form.city : null,
+                shipping_phone: form.phone,
+                notes: form.notes || null,
+            };
             const orderItems = items.map(item => ({
-                order_id: order.id,
                 product_id: item.product.id,
                 product_name: item.product.name,
                 product_image: item.product.images?.[0] || null,
@@ -75,17 +63,22 @@ export default function CheckoutPage() {
                 price: item.product.price,
             }));
 
-            await supabase.from('order_items').insert(orderItems);
+            const res = await fetch('/api/store/orders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ order, items: orderItems }),
+            });
+
+            if (!res.ok) {
+                const result = await res.json();
+                throw new Error(result.error || 'Failed to place order');
+            }
 
             setOrderNumber(orderNum);
             setOrderComplete(true);
             clearCart();
-        } catch (err) {
-            // If Supabase not connected, simulate success
-            const orderNum = `RVN-${Date.now().toString().slice(-6)}`;
-            setOrderNumber(orderNum);
-            setOrderComplete(true);
-            clearCart();
+        } catch (err: any) {
+            alert(`Order failed: ${err.message}`);
         }
         setLoading(false);
     };

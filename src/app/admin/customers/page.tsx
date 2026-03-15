@@ -1,31 +1,23 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { Profile } from '@/types';
 import { Search, Users, Mail, Calendar } from 'lucide-react';
 import styles from '../products/products.module.css';
 
-const DEMO_CUSTOMERS: (Profile & { order_count?: number; total_spent?: number })[] = [
-    { id: '1', email: 'ahmed@example.com', full_name: 'Ahmed Ali', role: 'customer', created_at: new Date(Date.now() - 2592000000).toISOString(), order_count: 5, total_spent: 549.95 },
-    { id: '2', email: 'sara@example.com', full_name: 'Sara Hassan', role: 'customer', created_at: new Date(Date.now() - 1296000000).toISOString(), order_count: 3, total_spent: 324.97 },
-    { id: '3', email: 'omar@example.com', full_name: 'Omar Khaled', role: 'customer', created_at: new Date(Date.now() - 604800000).toISOString(), order_count: 1, total_spent: 89.99 },
-    { id: '4', email: 'nour@example.com', full_name: 'Nour Saleh', role: 'customer', created_at: new Date(Date.now() - 259200000).toISOString(), order_count: 8, total_spent: 1249.92 },
-];
-
 export default function AdminCustomersPage() {
-    const [customers, setCustomers] = useState(DEMO_CUSTOMERS);
+    const [customers, setCustomers] = useState<any[]>([]);
     const [search, setSearch] = useState('');
 
     useEffect(() => {
-        const supabase = createClient();
-        const fetch = async () => {
-            try {
-                const { data } = await supabase.from('profiles').select('*').eq('role', 'customer').order('created_at', { ascending: false });
-                if (data && data.length > 0) setCustomers(data);
-            } catch { }
+        const fetchCustomers = async () => {
+            const res = await fetch('/api/admin/customers');
+            if (res.ok) {
+                const { customers: data } = await res.json();
+                if (data) setCustomers(data);
+            }
         };
-        fetch();
+        fetchCustomers();
     }, []);
 
     const filtered = customers.filter(c =>

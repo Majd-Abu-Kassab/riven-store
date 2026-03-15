@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { createClient } from '@/lib/supabase/client';
 import { Save, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import styles from '../account.module.css';
@@ -10,23 +9,43 @@ import styles from '../account.module.css';
 export default function ProfilePage() {
     const { profile, refreshProfile } = useAuth();
     const [form, setForm] = useState({
-        full_name: profile?.full_name || '',
-        phone: profile?.phone || '',
-        address: profile?.address || '',
-        city: profile?.city || '',
+        full_name: '',
+        phone: '',
+        address: '',
+        city: '',
     });
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [errorMsg, setErrorMsg] = useState('');
+
+    // Sync form when profile loads from AuthContext
+    useEffect(() => {
+        if (profile) {
+            setForm({
+                full_name: profile.full_name || '',
+                phone: profile.phone || '',
+                address: profile.address || '',
+                city: profile.city || '',
+            });
+        }
+    }, [profile]);
 
     const handleSave = async () => {
         setSaving(true);
-        const supabase = createClient();
+        setErrorMsg('');
         try {
-            await supabase.from('profiles').update(form).eq('id', profile?.id);
+            const res = await fetch('/api/account/profile', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(form),
+            });
+            if (!res.ok) { const r = await res.json(); throw new Error(r.error); }
             await refreshProfile();
             setSaved(true);
             setTimeout(() => setSaved(false), 3000);
-        } catch { }
+        } catch (e: any) {
+            setErrorMsg(e.message || 'Failed to save');
+        }
         setSaving(false);
     };
 
@@ -39,6 +58,7 @@ export default function ProfilePage() {
                 <h1 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '32px' }}>Profile Settings</h1>
 
                 <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {errorMsg && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px', borderRadius: '8px', fontSize: '14px' }}>{errorMsg}</div>}
                     <div className="input-group">
                         <label>Full Name</label>
                         <input className="input" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />

@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
-import { Product } from '@/types';
-import { Plus, Search, Edit, Trash2, Eye, Package } from 'lucide-react';
+import { Product, Category } from '@/types';
+import { Plus, Search, Edit, Trash2, Eye, Package, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import styles from './products.module.css';
 
@@ -18,25 +17,35 @@ const DEMO_PRODUCTS: Product[] = [
 
 export default function AdminProductsPage() {
     const [products, setProducts] = useState<Product[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
     const [search, setSearch] = useState('');
     const [showForm, setShowForm] = useState(false);
     const [editProduct, setEditProduct] = useState<Product | null>(null);
+    const [errorMsg, setErrorMsg] = useState('');
+    const [saving, setSaving] = useState(false);
 
     // Form state
     const [form, setForm] = useState({
         name: '', slug: '', description: '', price: '', compare_at_price: '', sku: '',
         stock_quantity: '', category_id: '', is_featured: false, is_active: true,
+        imageUrl: '',
     });
 
+    const fetchProducts = async () => {
+        try {
+            const res = await fetch('/api/admin/products');
+            if (res.ok) {
+                const { products } = await res.json();
+                if (products) setProducts(products);
+            }
+        } catch { }
+    };
+
     useEffect(() => {
-        const supabase = createClient();
-        const fetch = async () => {
-            try {
-                const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-                if (data && data.length > 0) setProducts(data);
-            } catch { }
-        };
-        fetch();
+        fetchProducts();
+        fetch('/api/store/categories').then(r => r.json()).then(({ categories: cats }) => {
+            if (cats) setCategories(cats);
+        }).catch(() => {});
     }, []);
 
     const filtered = products.filter(p =>
@@ -51,49 +60,59 @@ export default function AdminProductsPage() {
             price: product.price.toString(), compare_at_price: product.compare_at_price?.toString() || '',
             sku: product.sku || '', stock_quantity: product.stock_quantity.toString(),
             category_id: product.category_id || '', is_featured: product.is_featured, is_active: product.is_active,
+            imageUrl: product.images?.[0] || '',
         });
         setShowForm(true);
     };
 
     const openNew = () => {
         setEditProduct(null);
-        setForm({ name: '', slug: '', description: '', price: '', compare_at_price: '', sku: '', stock_quantity: '', category_id: '', is_featured: false, is_active: true });
+        setForm({ name: '', slug: '', description: '', price: '', compare_at_price: '', sku: '', stock_quantity: '', category_id: '', is_featured: false, is_active: true, imageUrl: '' });
         setShowForm(true);
     };
 
     const handleSave = async () => {
-        const supabase = createClient();
-        const slug = form.slug || form.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-        const payload = {
-            name: form.name, slug, description: form.description, price: parseFloat(form.price),
-            compare_at_price: form.compare_at_price ? parseFloat(form.compare_at_price) : null,
-            sku: form.sku || null, stock_quantity: parseInt(form.stock_quantity) || 0,
-            category_id: form.category_id || null, is_featured: form.is_featured, is_active: form.is_active,
-            images: [],
-        };
-
+        if (!form.name || !form.price) {
+            setErrorMsg('Product name and price are required.');
+            return;
+        }
+        setErrorMsg('');
+        setSaving(true);
         try {
-            if (editProduct) {
-                await supabase.from('products').update(payload).eq('id', editProduct.id);
-            } else {
-                await supabase.from('products').insert(payload);
-            }
-        } catch { }
+            const slug = form.slug || form.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+            const payload = {
+                ...(editProduct ? { id: editProduct.id } : {}),
+                name: form.name, slug, description: form.description, price: parseFloat(form.price),
+                compare_at_price: form.compare_at_price ? parseFloat(form.compare_at_price) : null,
+                sku: form.sku || null, stock_quantity: parseInt(form.stock_quantity) || 0,
+                category_id: form.category_id || null, is_featured: form.is_featured, is_active: form.is_active,
+                images: form.imageUrl ? [form.imageUrl] : [],
+            };
 
-        // Refresh
-        setShowForm(false);
-        try {
-            const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-            if (data) setProducts(data);
-        } catch { }
+            const res = await fetch('/api/admin/products', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const result = await res.json();
+            if (!res.ok) throw new Error(result.error || 'Failed to save product');
+
+            setShowForm(false);
+            await fetchProducts();
+        } catch (error: any) {
+            setErrorMsg(error.message || 'Failed to save product');
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleDelete = async (id: string) => {
         if (!confirm('Are you sure you want to delete this product?')) return;
-        const supabase = createClient();
         try {
-            await supabase.from('products').delete().eq('id', id);
-            setProducts(prev => prev.filter(p => p.id !== id));
+            const res = await fetch(`/api/admin/products?id=${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                setProducts(prev => prev.filter(p => p.id !== id));
+            }
         } catch { }
     };
 
@@ -139,7 +158,11 @@ export default function AdminProductsPage() {
                                 <td>
                                     <div className={styles.productName}>
                                         <div className={styles.productThumb}>
-                                            <Package size={16} />
+                                            {product.images?.[0] ? (
+                                                <img src={product.images[0]} alt="" width={32} height={32} style={{ objectFit: 'cover', borderRadius: '4px' }} />
+                                            ) : (
+                                                <Package size={16} />
+                                            )}
                                         </div>
                                         <div>
                                             <span style={{ fontWeight: 600 }}>{product.name}</span>
@@ -193,10 +216,19 @@ export default function AdminProductsPage() {
                         <h2 style={{ marginBottom: '24px', fontSize: '18px', fontWeight: 700 }}>
                             {editProduct ? 'Edit Product' : 'New Product'}
                         </h2>
+                        {errorMsg && (
+                            <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px' }}>
+                                <strong>Error:</strong> {errorMsg}
+                            </div>
+                        )}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             <div className="input-group">
                                 <label>Product Name *</label>
                                 <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                            </div>
+                            <div className="input-group">
+                                <label>Image URL</label>
+                                <input className="input" placeholder="https://example.com/image.jpg" value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} />
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                                 <div className="input-group">
@@ -219,6 +251,15 @@ export default function AdminProductsPage() {
                                 </div>
                             </div>
                             <div className="input-group">
+                                <label>Category</label>
+                                <select className="input select" value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })}>
+                                    <option value="">— No Category —</option>
+                                    {categories.map(cat => (
+                                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="input-group">
                                 <label>Description</label>
                                 <textarea className="input textarea" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} />
                             </div>
@@ -233,10 +274,10 @@ export default function AdminProductsPage() {
                                 </label>
                             </div>
                             <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                                <button className="btn btn-primary" onClick={handleSave} style={{ flex: 1 }}>
-                                    {editProduct ? 'Update Product' : 'Create Product'}
+                                <button className="btn btn-primary" onClick={handleSave} style={{ flex: 1 }} disabled={saving}>
+                                    {saving ? <><Loader2 size={16} className="spinner" /> Saving...</> : (editProduct ? 'Update Product' : 'Create Product')}
                                 </button>
-                                <button className="btn btn-secondary" onClick={() => setShowForm(false)}>Cancel</button>
+                                <button className="btn btn-secondary" onClick={() => setShowForm(false)} disabled={saving}>Cancel</button>
                             </div>
                         </div>
                     </div>

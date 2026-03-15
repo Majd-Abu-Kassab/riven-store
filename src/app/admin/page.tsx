@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { DollarSign, Package, ShoppingCart, Users, TrendingUp, AlertTriangle } from 'lucide-react';
 import styles from './dashboard.module.css';
 
@@ -27,59 +26,21 @@ interface DashboardStats {
 
 export default function AdminDashboard() {
     const [stats, setStats] = useState<DashboardStats>({
-        totalRevenue: 12450.00,
-        totalOrders: 48,
-        totalProducts: 156,
-        totalCustomers: 234,
-        recentOrders: [
-            { id: '1', order_number: 'RVN-001234', status: 'pending', total: 89.99, shipping_name: 'Ahmed Ali', created_at: new Date().toISOString() },
-            { id: '2', order_number: 'RVN-001233', status: 'confirmed', total: 249.98, shipping_name: 'Sara Hassan', created_at: new Date(Date.now() - 3600000).toISOString() },
-            { id: '3', order_number: 'RVN-001232', status: 'shipped', total: 34.99, shipping_name: 'Omar Khaled', created_at: new Date(Date.now() - 7200000).toISOString() },
-            { id: '4', order_number: 'RVN-001231', status: 'delivered', total: 174.99, shipping_name: 'Nour Saleh', created_at: new Date(Date.now() - 86400000).toISOString() },
-        ],
-        lowStockProducts: [
-            { id: '1', name: 'Leather Backpack', stock_quantity: 3 },
-            { id: '2', name: 'Minimalist Watch', stock_quantity: 5 },
-            { id: '3', name: 'Running Shoes', stock_quantity: 0 },
-        ],
+        totalRevenue: 0,
+        totalOrders: 0,
+        totalProducts: 0,
+        totalCustomers: 0,
+        recentOrders: [],
+        lowStockProducts: [],
     });
 
     useEffect(() => {
-        const supabase = createClient();
         const fetchStats = async () => {
             try {
-                const [ordersRes, productsRes, profilesRes] = await Promise.all([
-                    supabase.from('orders').select('*'),
-                    supabase.from('products').select('*'),
-                    supabase.from('profiles').select('*').eq('role', 'customer'),
-                ]);
-
-                if (ordersRes.data) {
-                    const totalRevenue = ordersRes.data.reduce((sum, o) => sum + (o.total || 0), 0);
-                    const recentOrders = ordersRes.data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5);
-
-                    setStats(prev => ({
-                        ...prev,
-                        totalRevenue,
-                        totalOrders: ordersRes.data!.length,
-                        recentOrders,
-                    }));
-                }
-
-                if (productsRes.data) {
-                    const lowStock = productsRes.data.filter(p => p.stock_quantity <= 5).sort((a, b) => a.stock_quantity - b.stock_quantity);
-                    setStats(prev => ({
-                        ...prev,
-                        totalProducts: productsRes.data!.length,
-                        lowStockProducts: lowStock,
-                    }));
-                }
-
-                if (profilesRes.data) {
-                    setStats(prev => ({
-                        ...prev,
-                        totalCustomers: profilesRes.data!.length,
-                    }));
+                const res = await fetch('/api/admin/dashboard');
+                if (res.ok) {
+                    const data = await res.json();
+                    setStats(data);
                 }
             } catch { }
         };

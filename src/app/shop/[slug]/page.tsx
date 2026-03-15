@@ -6,10 +6,97 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { useCart } from '@/contexts/cart-context';
+import { useWishlist } from '@/contexts/wishlist-context';
+import { useAuth } from '@/contexts/auth-context';
 import ProductCard from '@/components/product-card';
 import { Product } from '@/types';
 import { ShoppingCart, Heart, Star, Minus, Plus, Truck, Store, ArrowLeft, ShoppingBag } from 'lucide-react';
 import styles from './detail.module.css';
+
+function ReviewForm({ productId, onSubmitted }: { productId: string, onSubmitted: () => void }) {
+    const { user } = useAuth();
+    const [rating, setRating] = useState(5);
+    const [comment, setComment] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState('');
+
+    if (!user) {
+        return (
+            <div className={styles.loginToReview}>
+                <p>Please <Link href="/login">login</Link> to write a review.</p>
+            </div>
+        );
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setSubmitting(true);
+
+        const supabase = createClient();
+        try {
+            const { error: err } = await supabase
+                .from('reviews')
+                .insert({
+                    product_id: productId,
+                    customer_id: user.id,
+                    rating,
+                    comment
+                });
+            
+            if (err) throw err;
+            onSubmitted();
+        } catch (error: any) {
+            setError(error.message || 'Failed to submit review');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <form className={styles.reviewForm} onSubmit={handleSubmit}>
+            <div className={styles.ratingSelect}>
+                <label>Your Rating</label>
+                <div className={styles.starInput}>
+                    {[1, 2, 3, 4, 5].map(star => (
+                        <button
+                            key={star}
+                            type="button"
+                            onClick={() => setRating(star)}
+                            className={styles.starBtn}
+                        >
+                            <Star
+                                size={24}
+                                fill={star <= rating ? 'var(--color-warning)' : 'none'}
+                                stroke="var(--color-warning)"
+                            />
+                        </button>
+                    ))}
+                </div>
+            </div>
+            <div className={styles.inputGroup}>
+                <label>Your Comment</label>
+                <textarea
+                    className="input textarea"
+                    placeholder="Share your experience with this product..."
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    rows={4}
+                    required
+                />
+            </div>
+            {error && <p className={styles.errorMsg}>{error}</p>}
+            <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={submitting}
+                style={{ width: '100%' }}
+            >
+                {submitting ? 'Submitting...' : 'Submit Review'}
+            </button>
+        </form>
+    );
+}
 
 const DEMO_PRODUCT: Product = {
     id: '1', name: 'Wireless Headphones Pro', slug: 'wireless-headphones-pro',
@@ -23,34 +110,58 @@ const DEMO_PRODUCT: Product = {
 export default function ProductDetailPage() {
     const params = useParams();
     const [product, setProduct] = useState<Product>(DEMO_PRODUCT);
+    const [reviews, setReviews] = useState<any[]>([]);
     const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
     const [quantity, setQuantity] = useState(1);
     const [selectedImage, setSelectedImage] = useState(0);
     const { addItem, isInCart, getItemQuantity } = useCart();
+    const { toggleWishlist, isInWishlist } = useWishlist();
     const inCart = isInCart(product.id);
     const cartQty = getItemQuantity(product.id);
+    const isWishlisted = isInWishlist(product.id);
     const hasDiscount = product.compare_at_price && product.compare_at_price > product.price;
 
     useEffect(() => {
         const supabase = createClient();
         const fetchProduct = async () => {
             try {
+                // Fetch product with reviews
                 const { data } = await supabase
                     .from('products')
-                    .select('*, category:categories(*)')
+                    .select('*, category:categories(*), reviews(*, customer:profiles(full_name, avatar_url))')
                     .eq('slug', params.slug)
                     .single();
+                
                 if (data) {
-                    setProduct(data);
+                    const revs = data.reviews || [];
+                    const avgRating = revs.length > 0 
+                        ? revs.reduce((acc: number, r: any) => acc + r.rating, 0) / revs.length 
+                        : 0;
+                    
+                    setProduct({
+                        ...data,
+                        avg_rating: avgRating,
+                        review_count: revs.length
+                    });
+                    setReviews(revs.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+
                     // Fetch related
                     const { data: related } = await supabase
                         .from('products')
-                        .select('*, category:categories(*)')
+                        .select('*, category:categories(*), reviews(rating)')
                         .eq('category_id', data.category_id)
                         .neq('id', data.id)
                         .eq('is_active', true)
                         .limit(4);
-                    if (related) setRelatedProducts(related);
+                    
+                    if (related) {
+                        const relatedWithRatings = related.map((p: any) => ({
+                            ...p,
+                            avg_rating: p.reviews.length > 0 ? p.reviews.reduce((acc: number, r: any) => acc + r.rating, 0) / p.reviews.length : 0,
+                            review_count: p.reviews.length
+                        }));
+                        setRelatedProducts(relatedWithRatings);
+                    }
                 }
             } catch { }
         };
@@ -169,6 +280,14 @@ export default function ProductDetailPage() {
                                 <ShoppingCart size={18} />
                                 {product.stock_quantity <= 0 ? 'Out of Stock' : inCart ? 'Add More to Cart' : 'Add to Cart'}
                             </button>
+                            <button
+                                className={`btn btn-secondary btn-lg ${isWishlisted ? styles.wishlisted : ''}`}
+                                onClick={() => toggleWishlist(product)}
+                                title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                                style={{ width: '56px', padding: 0, display: 'flex', alignItems: 'center', justifySelf: 'center' }}
+                            >
+                                <Heart size={20} fill={isWishlisted ? "currentColor" : "none"} />
+                            </button>
                         </div>
 
                         {inCart && (
@@ -199,6 +318,81 @@ export default function ProductDetailPage() {
                                 <span className={styles.outOfStock}>✗ Out of Stock</span>
                             )}
                         </p>
+                    </div>
+                </div>
+
+                {/* Reviews Section */}
+                <div className={styles.reviewsSection}>
+                    <div className={styles.reviewsHeader}>
+                        <h2 className={styles.sectionTitle}>Customer Reviews</h2>
+                        <div className={styles.ratingSummary}>
+                            <div className={styles.bigRating}>{product.avg_rating?.toFixed(1) || '0.0'}</div>
+                            <div>
+                                <div className={styles.stars}>
+                                    {[1, 2, 3, 4, 5].map(star => (
+                                        <Star
+                                            key={star}
+                                            size={18}
+                                            fill={star <= Math.round(product.avg_rating || 0) ? 'var(--color-warning)' : 'none'}
+                                            stroke="var(--color-warning)"
+                                        />
+                                    ))}
+                                </div>
+                                <div className={styles.reviewCountInfo}>Based on {product.review_count} reviews</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className={styles.reviewsLayout}>
+                        {/* Write a Review */}
+                        <div className={styles.writeReview}>
+                            <h3>Write a Review</h3>
+                            <p>Share your thoughts with other customers</p>
+                            
+                            <ReviewForm 
+                                productId={product.id} 
+                                onSubmitted={() => {
+                                    // Refresh (this is a simplified refresh)
+                                    window.location.reload();
+                                }} 
+                            />
+                        </div>
+
+                        {/* Reviews List */}
+                        <div className={styles.reviewsList}>
+                            {reviews.length === 0 ? (
+                                <div className={styles.noReviews}>
+                                    <p>No reviews yet. Be the first to review this product!</p>
+                                </div>
+                            ) : (
+                                reviews.map((review, i) => (
+                                    <div key={review.id} className={styles.reviewItem}>
+                                        <div className={styles.reviewTop}>
+                                            <div className={styles.reviewAuthor}>
+                                                <div className={styles.authorAvatar}>
+                                                    {review.customer?.full_name?.charAt(0) || 'U'}
+                                                </div>
+                                                <div>
+                                                    <div className={styles.authorName}>{review.customer?.full_name || 'Verified Customer'}</div>
+                                                    <div className={styles.reviewDate}>{new Date(review.created_at).toLocaleDateString()}</div>
+                                                </div>
+                                            </div>
+                                            <div className={styles.reviewStars}>
+                                                {[1, 2, 3, 4, 5].map(star => (
+                                                    <Star
+                                                        key={star}
+                                                        size={14}
+                                                        fill={star <= review.rating ? 'var(--color-warning)' : 'none'}
+                                                        stroke="var(--color-warning)"
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                        {review.comment && <p className={styles.reviewComment}>{review.comment}</p>}
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     </div>
                 </div>
 

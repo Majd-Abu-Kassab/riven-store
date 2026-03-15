@@ -1,36 +1,27 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { Order } from '@/types';
 import { Search, Eye, ChevronDown } from 'lucide-react';
 import styles from '../products/products.module.css';
 
-const DEMO_ORDERS: Order[] = [
-    { id: '1', order_number: 'RVN-001234', customer_id: '1', status: 'pending', delivery_method: 'delivery', subtotal: 89.99, shipping_cost: 5, tax: 0, total: 94.99, shipping_name: 'Ahmed Ali', shipping_phone: '0501234567', shipping_address: '123 Main St', shipping_city: 'Amman', created_at: new Date().toISOString(), updated_at: '' },
-    { id: '2', order_number: 'RVN-001233', customer_id: '2', status: 'confirmed', delivery_method: 'pickup', subtotal: 249.98, shipping_cost: 0, tax: 0, total: 249.98, shipping_name: 'Sara Hassan', shipping_phone: '0509876543', created_at: new Date(Date.now() - 3600000).toISOString(), updated_at: '' },
-    { id: '3', order_number: 'RVN-001232', customer_id: '3', status: 'shipped', delivery_method: 'delivery', subtotal: 34.99, shipping_cost: 5, tax: 0, total: 39.99, shipping_name: 'Omar Khaled', shipping_phone: '0507654321', shipping_address: '456 Oak Ave', shipping_city: 'Amman', created_at: new Date(Date.now() - 7200000).toISOString(), updated_at: '' },
-    { id: '4', order_number: 'RVN-001231', customer_id: '4', status: 'delivered', delivery_method: 'delivery', subtotal: 174.99, shipping_cost: 5, tax: 0, total: 179.99, shipping_name: 'Nour Saleh', shipping_phone: '0505555555', shipping_address: '789 Elm Rd', shipping_city: 'Irbid', created_at: new Date(Date.now() - 86400000).toISOString(), updated_at: '' },
-    { id: '5', order_number: 'RVN-001230', customer_id: '5', status: 'cancelled', delivery_method: 'pickup', subtotal: 45.00, shipping_cost: 0, tax: 0, total: 45.00, shipping_name: 'Lina Abed', shipping_phone: '0506666666', created_at: new Date(Date.now() - 172800000).toISOString(), updated_at: '' },
-];
-
 const STATUSES = ['all', 'pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
 
 export default function AdminOrdersPage() {
-    const [orders, setOrders] = useState<Order[]>(DEMO_ORDERS);
+    const [orders, setOrders] = useState<Order[]>([]);
     const [statusFilter, setStatusFilter] = useState('all');
     const [search, setSearch] = useState('');
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
     useEffect(() => {
-        const supabase = createClient();
-        const fetch = async () => {
-            try {
-                const { data } = await supabase.from('orders').select('*, items:order_items(*)').order('created_at', { ascending: false });
-                if (data && data.length > 0) setOrders(data);
-            } catch { }
+        const fetchOrders = async () => {
+            const res = await fetch('/api/admin/orders');
+            if (res.ok) {
+                const { orders: data } = await res.json();
+                if (data) setOrders(data);
+            }
         };
-        fetch();
+        fetchOrders();
     }, []);
 
     const filtered = orders.filter(o => {
@@ -48,9 +39,12 @@ export default function AdminOrdersPage() {
     };
 
     const updateOrderStatus = async (orderId: string, newStatus: string) => {
-        const supabase = createClient();
         try {
-            await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
+            await fetch('/api/admin/orders', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: orderId, status: newStatus }),
+            });
         } catch { }
         setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus as Order['status'] } : o));
         if (selectedOrder?.id === orderId) {

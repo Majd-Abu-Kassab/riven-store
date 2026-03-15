@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Product } from '@/types';
 import { useCart } from '@/contexts/cart-context';
+import { useWishlist } from '@/contexts/wishlist-context';
 import { ShoppingCart, Heart, Star, Minus, Plus } from 'lucide-react';
 import styles from './product-card.module.css';
 
@@ -13,31 +14,45 @@ interface ProductCardProps {
 
 export default function ProductCard({ product }: ProductCardProps) {
     const { addItem, isInCart, getItemQuantity, updateQuantity } = useCart();
+    const { toggleWishlist, isInWishlist } = useWishlist();
+    const isWishlisted = isInWishlist(product.id);
     const inCart = isInCart(product.id);
     const qty = getItemQuantity(product.id);
     const hasDiscount = product.compare_at_price && product.compare_at_price > product.price;
-    const discountPercent = hasDiscount
-        ? Math.round((1 - product.price / product.compare_at_price!) * 100)
-        : 0;
 
     return (
         <div className={`${styles.card} card-hover`}>
-            <Link href={`/shop/${product.slug}`} className={styles.imageWrap}>
-                {product.images?.[0] ? (
-                    <Image
-                        src={product.images[0]}
-                        alt={product.name}
-                        fill
-                        style={{ objectFit: 'cover' }}
-                        sizes="(max-width: 768px) 50vw, 25vw"
-                    />
-                ) : (
-                    <div className={styles.placeholder}>
-                        <ShoppingCart size={32} />
-                    </div>
-                )}
+            <div className={styles.imageWrap}>
+                <Link href={`/shop/${product.slug}`} className={styles.imageLink}>
+                    {product.images?.[0] ? (
+                        <Image
+                            src={product.images[0]}
+                            alt={product.name}
+                            fill
+                            style={{ objectFit: 'cover' }}
+                            sizes="(max-width: 768px) 50vw, 25vw"
+                        />
+                    ) : (
+                        <div className={styles.placeholder}>
+                            <ShoppingCart size={32} />
+                        </div>
+                    )}
+                </Link>
+                
+                <button 
+                    className={`${styles.wishlistBtn} ${isWishlisted ? styles.wishlisted : ''}`}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleWishlist(product);
+                    }}
+                    title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                >
+                    <Heart size={18} fill={isWishlisted ? "currentColor" : "none"} />
+                </button>
+
                 {hasDiscount && (
-                    <span className={styles.discountBadge}>-{discountPercent}%</span>
+                    <span className={styles.discountBadge}>-{Math.round((1 - product.price / product.compare_at_price!) * 100)}%</span>
                 )}
                 {product.is_featured && (
                     <span className={styles.featuredBadge}>Featured</span>
@@ -45,7 +60,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                 {product.stock_quantity <= 0 && (
                     <div className={styles.soldOut}>Sold Out</div>
                 )}
-            </Link>
+            </div>
 
             <div className={styles.info}>
                 {product.category && (

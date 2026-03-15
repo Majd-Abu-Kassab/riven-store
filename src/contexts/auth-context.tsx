@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Profile } from '@/types';
 import { User } from '@supabase/supabase-js';
@@ -27,7 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
-    const supabase = createClient();
+    const supabase = useMemo(() => createClient(), []);
 
     const fetchProfile = useCallback(async (userId: string) => {
         const { data } = await supabase
@@ -72,7 +72,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [supabase, fetchProfile]);
 
     const signOut = async () => {
-        await supabase.auth.signOut();
+        try {
+            await fetch('/api/auth/signout', { method: 'POST' });
+        } catch { }
         setUser(null);
         setProfile(null);
         window.location.href = '/';

@@ -10,6 +10,7 @@ import {
     ShoppingCart,
     Users,
     FolderTree,
+    FileText,
     ArrowLeft,
     Menu,
     X,
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
     { href: '/admin/orders', icon: ShoppingCart, label: 'Orders' },
     { href: '/admin/customers', icon: Users, label: 'Customers' },
     { href: '/admin/categories', icon: FolderTree, label: 'Categories' },
+    { href: '/admin/pages', icon: FileText, label: 'Pages' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

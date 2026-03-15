@@ -1,34 +1,27 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { Category } from '@/types';
-import { Plus, Edit, Trash2, FolderTree } from 'lucide-react';
+import { Plus, Edit, Trash2, FolderTree, Loader2 } from 'lucide-react';
 import styles from '../products/products.module.css';
 
-const DEMO_CATS: Category[] = [
-    { id: '1', name: 'Electronics', slug: 'electronics', description: 'Latest gadgets and tech', sort_order: 1, created_at: '' },
-    { id: '2', name: 'Fashion', slug: 'fashion', description: 'Trending styles', sort_order: 2, created_at: '' },
-    { id: '3', name: 'Home & Living', slug: 'home-living', description: 'Decor and lifestyle', sort_order: 3, created_at: '' },
-    { id: '4', name: 'Sports', slug: 'sports', description: 'Fitness and outdoors', sort_order: 4, created_at: '' },
-];
-
 export default function AdminCategoriesPage() {
-    const [categories, setCategories] = useState<Category[]>(DEMO_CATS);
+    const [categories, setCategories] = useState<Category[]>([]);
     const [showForm, setShowForm] = useState(false);
     const [editCat, setEditCat] = useState<Category | null>(null);
     const [form, setForm] = useState({ name: '', slug: '', description: '', sort_order: '' });
+    const [saving, setSaving] = useState(false);
+    const [errorMsg, setErrorMsg] = useState('');
 
-    useEffect(() => {
-        const supabase = createClient();
-        const fetch = async () => {
-            try {
-                const { data } = await supabase.from('categories').select('*').order('sort_order');
-                if (data && data.length > 0) setCategories(data);
-            } catch { }
-        };
-        fetch();
-    }, []);
+    const fetchCategories = async () => {
+        const res = await fetch('/api/admin/categories');
+        if (res.ok) {
+            const { categories: cats } = await res.json();
+            if (cats) setCategories(cats);
+        }
+    };
+
+    useEffect(() => { fetchCategories(); }, []);
 
     const openEdit = (cat: Category) => {
         setEditCat(cat);
@@ -43,29 +36,28 @@ export default function AdminCategoriesPage() {
     };
 
     const handleSave = async () => {
-        const supabase = createClient();
-        const slug = form.slug || form.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-        const payload = { name: form.name, slug, description: form.description, sort_order: parseInt(form.sort_order) || 0 };
-
+        if (!form.name) { setErrorMsg('Name is required.'); return; }
+        setErrorMsg('');
+        setSaving(true);
         try {
-            if (editCat) {
-                await supabase.from('categories').update(payload).eq('id', editCat.id);
-            } else {
-                await supabase.from('categories').insert(payload);
-            }
-            const { data } = await supabase.from('categories').select('*').order('sort_order');
-            if (data) setCategories(data);
-        } catch { }
-        setShowForm(false);
+            const slug = form.slug || form.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+            const payload = { ...(editCat ? { id: editCat.id } : {}), name: form.name, slug, description: form.description, sort_order: parseInt(form.sort_order) || 0 };
+            const res = await fetch('/api/admin/categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const result = await res.json();
+            if (!res.ok) throw new Error(result.error || 'Failed to save');
+            setShowForm(false);
+            await fetchCategories();
+        } catch (e: any) {
+            setErrorMsg(e.message);
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleDelete = async (id: string) => {
         if (!confirm('Delete this category?')) return;
-        const supabase = createClient();
-        try {
-            await supabase.from('categories').delete().eq('id', id);
-            setCategories(prev => prev.filter(c => c.id !== id));
-        } catch { }
+        const res = await fetch(`/api/admin/categories?id=${id}`, { method: 'DELETE' });
+        if (res.ok) setCategories(prev => prev.filter(c => c.id !== id));
     };
 
     return (
@@ -119,6 +111,7 @@ export default function AdminCategoriesPage() {
                         <h2 style={{ marginBottom: '24px', fontSize: '18px', fontWeight: 700 }}>
                             {editCat ? 'Edit Category' : 'New Category'}
                         </h2>
+                        {errorMsg && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px' }}><strong>Error:</strong> {errorMsg}</div>}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             <div className="input-group">
                                 <label>Name *</label>
@@ -137,10 +130,10 @@ export default function AdminCategoriesPage() {
                                 <input className="input" type="number" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: e.target.value })} />
                             </div>
                             <div style={{ display: 'flex', gap: '12px' }}>
-                                <button className="btn btn-primary" onClick={handleSave} style={{ flex: 1 }}>
-                                    {editCat ? 'Update' : 'Create'}
+                                <button className="btn btn-primary" onClick={handleSave} style={{ flex: 1 }} disabled={saving}>
+                                    {saving ? <><Loader2 size={16} className="spinner" /> Saving...</> : (editCat ? 'Update' : 'Create')}
                                 </button>
-                                <button className="btn btn-secondary" onClick={() => setShowForm(false)}>Cancel</button>
+                                <button className="btn btn-secondary" onClick={() => setShowForm(false)} disabled={saving}>Cancel</button>
                             </div>
                         </div>
                     </div>

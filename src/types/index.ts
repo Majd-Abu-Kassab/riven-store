@@ -125,3 +125,12 @@ export interface WishlistItem {
   product?: Product;
   created_at: string;
 }
+
+// ===== Site Page Types =====
+export interface SitePage {
+  id: string;
+  slug: string;
+  title: string;
+  content: string;
+  updated_at: string;
+}

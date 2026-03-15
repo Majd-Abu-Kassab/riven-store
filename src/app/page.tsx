@@ -34,40 +34,27 @@ export default function HomePage() {
   const [newProducts, setNewProducts] = useState<Product[]>([]);
 
   useEffect(() => {
-    const supabase = createClient();
-
-    // Try to fetch real data
     const fetchData = async () => {
       try {
-        const { data: cats } = await supabase
-          .from('categories')
-          .select('*')
-          .order('sort_order');
-        if (cats && cats.length > 0) setCategories(cats);
-
-        const { data: featured } = await supabase
-          .from('products')
-          .select('*, category:categories(*)')
-          .eq('is_featured', true)
-          .eq('is_active', true)
-          .limit(4);
-        if (featured && featured.length > 0) setFeaturedProducts(featured);
-
-        const { data: newest } = await supabase
-          .from('products')
-          .select('*, category:categories(*)')
-          .eq('is_active', true)
-          .order('created_at', { ascending: false })
-          .limit(8);
-        if (newest && newest.length > 0) setNewProducts(newest);
-      } catch {
-        // Handle errors or show empty state without falling back to demo data
-        setCategories([]);
-        setFeaturedProducts([]);
-        setNewProducts([]);
-      }
+        const [catsRes, featuredRes, newestRes] = await Promise.all([
+          fetch('/api/store/categories'),
+          fetch('/api/store/products?active=true&featured=true&limit=4'),
+          fetch('/api/store/products?active=true&limit=8'),
+        ]);
+        if (catsRes.ok) {
+          const { categories: cats } = await catsRes.json();
+          if (cats && cats.length > 0) setCategories(cats);
+        }
+        if (featuredRes.ok) {
+          const { products: featured } = await featuredRes.json();
+          if (featured && featured.length > 0) setFeaturedProducts(featured);
+        }
+        if (newestRes.ok) {
+          const { products: newest } = await newestRes.json();
+          if (newest && newest.length > 0) setNewProducts(newest);
+        }
+      } catch { }
     };
-
     fetchData();
   }, []);
 

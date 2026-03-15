@@ -41,18 +41,20 @@ export default function ShopPage() {
     const [showFilters, setShowFilters] = useState(false);
 
     useEffect(() => {
-        const supabase = createClient();
         const fetchData = async () => {
             try {
-                const { data: cats } = await supabase.from('categories').select('*').order('sort_order');
-                if (cats && cats.length > 0) setCategories(cats);
-
-                const { data: prods } = await supabase
-                    .from('products')
-                    .select('*, category:categories(*)')
-                    .eq('is_active', true)
-                    .order('created_at', { ascending: false });
-                if (prods && prods.length > 0) setProducts(prods);
+                const [catsRes, prodsRes] = await Promise.all([
+                    fetch('/api/store/categories'),
+                    fetch('/api/store/products?active=true'),
+                ]);
+                if (catsRes.ok) {
+                    const { categories: cats } = await catsRes.json();
+                    if (cats && cats.length > 0) setCategories(cats);
+                }
+                if (prodsRes.ok) {
+                    const { products: prods } = await prodsRes.json();
+                    if (prods && prods.length > 0) setProducts(prods);
+                }
             } catch { }
         };
         fetchData();

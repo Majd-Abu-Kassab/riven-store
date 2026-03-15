@@ -44,10 +44,10 @@ export default function Footer() {
                     {/* Info Links */}
                     <div className={styles.column}>
                         <h4 className={styles.columnTitle}>{t('footer_info')}</h4>
-                        <Link href="#" className={styles.link}>{t('about')}</Link>
-                        <Link href="#" className={styles.link}>{t('contact')}</Link>
-                        <Link href="#" className={styles.link}>{t('faq')}</Link>
-                        <Link href="#" className={styles.link}>{t('privacy')}</Link>
+                        <Link href="/info/about-us" className={styles.link}>{t('about')}</Link>
+                        <Link href="/info/contact" className={styles.link}>{t('contact')}</Link>
+                        <Link href="/info/faq" className={styles.link}>{t('faq')}</Link>
+                        <Link href="/info/privacy-policy" className={styles.link}>{t('privacy')}</Link>
                     </div>
                 </div>
 

@@ -1,0 +1,117 @@
+.container {
+    padding: var(--space-12) 0 var(--space-20);
+}
+
+.breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    color: var(--color-text-tertiary);
+    font-size: 13px;
+    margin-bottom: var(--space-12);
+}
+
+.breadcrumbs a {
+    transition: color var(--transition-fast);
+}
+
+.breadcrumbs a:hover {
+    color: var(--color-primary);
+}
+
+.activeLabel {
+    color: var(--color-text-secondary);
+    font-weight: 500;
+}
+
+.layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: var(--space-16);
+    align-items: start;
+}
+
+.sidebar {
+    background: var(--color-bg-secondary);
+    padding: var(--space-8);
+    border-radius: var(--radius-2xl);
+    position: sticky;
+    top: calc(var(--header-height) + var(--space-8));
+}
+
+.sidebarTitle {
+    font-size: var(--text-lg);
+    font-weight: 800;
+    margin-bottom: var(--space-6);
+}
+
+.sideNav {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.sideLink, .sideLinkActive {
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-lg);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    transition: all var(--transition-base);
+}
+
+.sideLink {
+    color: var(--color-text-secondary);
+}
+
+.sideLink:hover {
+    background: var(--color-border-light);
+    color: var(--color-primary);
+}
+
+.sideLinkActive {
+    background: var(--color-primary);
+    color: white;
+}
+
+.main {
+    max-width: 800px;
+}
+
+.title {
+    font-size: var(--text-4xl);
+    font-weight: 800;
+    margin-bottom: var(--space-8);
+    line-height: 1.1;
+}
+
+.content {
+    font-size: var(--text-base);
+    color: var(--color-text-secondary);
+    line-height: 1.8;
+}
+
+.content p {
+    margin-bottom: var(--space-6);
+}
+
+.content h2, .content h3 {
+    color: var(--color-text);
+    margin: var(--space-10) 0 var(--space-4);
+    font-weight: 800;
+}
+
+@media (max-width: 1024px) {
+    .layout {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        position: static;
+        margin-bottom: var(--space-8);
+    }
+
+    .sideNav {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+}

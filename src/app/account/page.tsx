@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { createClient } from '@/lib/supabase/client';
 import { Order } from '@/types';
 import { Package, ShoppingBag, User, Clock, Truck, Store, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
@@ -14,18 +13,18 @@ export default function AccountPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const supabase = createClient();
-        const fetch = async () => {
+        const fetchOrders = async () => {
             try {
-                const { data } = await supabase
-                    .from('orders')
-                    .select('*, items:order_items(*)')
-                    .order('created_at', { ascending: false });
-                if (data) setOrders(data);
-            } catch { }
-            setLoading(false);
+                const res = await fetch('/api/account/orders');
+                if (res.ok) {
+                    const { orders: data } = await res.json();
+                    if (data) setOrders(data);
+                }
+            } catch { } finally {
+                setLoading(false);
+            }
         };
-        fetch();
+        fetchOrders();
     }, []);
 
     const getStatusBadge = (status: string) => {
